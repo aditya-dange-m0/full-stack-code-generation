@@ -14,10 +14,18 @@ export async function POST(req) {
 
   // Initialize Convex client
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+  // const modelIdentifier = "google:gemini-2.0-flash";
+  // const modelIdentifier = "openrouter:moonshotai/kimi-k2";
+  const modelIdentifier = "openrouter:qwen/qwen3-235b-a22b-07-25"
 
   try {
-    const result = await GenAiCode.sendMessage(prompt);
-    const resp = result.response.text();
+    const result = await GenAiCode({
+      prompt,
+      modelIdentifier: modelIdentifier,
+    });
+
+    console.log("result : ", result);
+    let resp = result.text;
 
     const usageMetadata = result.response.usageMetadata;
     const promptTokenCount = Number(usageMetadata?.promptTokenCount) || 0;
@@ -73,7 +81,20 @@ export async function POST(req) {
         );
       }
     }
-    return NextResponse.json(JSON.parse(resp))
+    // Clean the response - remove markdown code blocks if present
+    if (resp.includes("```json")) {
+      resp = resp.replace(/```json\n?/g, "").replace(/\n?```/, "");
+    } else if (resp.includes("```")) {
+      resp = resp.replace(/```\n?/g, "").replace(/\n?```/, "");
+    }
+
+    // Trim any extra whitespace
+    resp = resp.trim();
+
+    const parsedResp = JSON.parse(resp);
+    return NextResponse.json(parsedResp);
+
+    // return NextResponse.json(JSON.parse(resp));
   } catch (error) {
     console.error("Error in /api/gen-ai-chat:", error, error.stack);
     return NextResponse.json(
